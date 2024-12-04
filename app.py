@@ -8,7 +8,7 @@ CORS(app)  # Enable CORS for cross-origin requests
 logging.basicConfig(level=logging.INFO)
 
 # Static API URL
-API_URL = "https://sogolyticsintuc.sevenpv.com/serviceAPI/service/GetDataTranspose"
+API_URL = "https://www.sogolytics.com/serviceAPI/service/GetDataTranspose"
 
 
 @app.route("/odata/DynamicEntities", methods=["GET"])
