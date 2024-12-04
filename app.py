@@ -8,7 +8,7 @@ CORS(app)  # Enable CORS for cross-origin requests
 logging.basicConfig(level=logging.INFO)
 
 # Static API URL
-API_URL = "https://www.sogolytics.com/serviceAPI/service/GetDataTranspose"
+API_URL = "https://sogolyticsintuc.sevenpv.com/serviceAPI/service/GetDataTranspose"
 
 
 @app.route("/odata/DynamicEntities", methods=["GET"])
@@ -67,7 +67,7 @@ def get_metadata():
     <edmx:Edmx xmlns:edmx="http://docs.oasis-open.org/odata/ns/edmx" Version="4.0">
       <edmx:DataServices>
         <Schema Namespace="DynamicOData" xmlns="http://docs.oasis-open.org/odata/ns/edm">
-          <EntityType Name="DynamicEntity">
+          <EntityType Name="DynamicEntity" OpenType="true">
             <Key>
               <PropertyRef Name="SrNO"/>
             </Key>
@@ -83,8 +83,8 @@ def get_metadata():
     try:
         # Static payload for metadata sampling
         sample_payload = {
-            "token": "f5439ee9-2a4e-4bec-b345-aa3a240cf3f8",  # Replace with valid token
-            "intsurveyno": "4",  # Replace with valid survey number
+            "token": "16fb52f3-1372-41f4-a766-3e97f331799a",  # Replace with valid token
+            "intsurveyno": "6901",  # Replace with valid survey number
             "ParticipationStatus": 3,
             "LastUpdate": "",
             "isincludeincompleteresponses": "true",
@@ -110,13 +110,23 @@ def get_metadata():
             elif isinstance(value, str):
                 return "Edm.String"
             elif isinstance(value, float):
-                return "Edm.Decimal"
+                return "Edm.Double"
             else:
                 return "Edm.String"
 
+        # Shorten long property names
+        def shorten_property_name(name):
+            if len(name) > 50:
+                return name[:50]
+            return name
+
         # Generate fields dynamically based on sample data
-        fields = "\n".join([f'<Property Name="{key}" Type="{determine_type(value)}"/>'
-                            for key, value in sample_data.items()])
+        fields = "\n".join(
+            [
+                f'<Property Name="{shorten_property_name(key)}" Type="{determine_type(value)}"/>'
+                for key, value in sample_data.items()
+            ]
+        )
 
         # Generate metadata using the dynamic fields
         metadata = metadata_template.format(fields=fields)
