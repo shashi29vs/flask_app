@@ -4,7 +4,7 @@ import logging
 from flask_cors import CORS
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for cross-origin requests (required for Tableau)
+CORS(app)  # Enable CORS for cross-origin requests
 logging.basicConfig(level=logging.INFO)
 
 # Static API URL
@@ -64,10 +64,13 @@ def get_metadata():
     Dynamically generate OData metadata based on the API response.
     """
     metadata_template = """<?xml version="1.0" encoding="utf-8"?>
-    <edmx:Edmx Version="4.0" xmlns:edmx="http://docs.oasis-open.org/odata/ns/edmx">
+    <edmx:Edmx xmlns:edmx="http://docs.oasis-open.org/odata/ns/edmx" Version="4.0">
       <edmx:DataServices>
         <Schema Namespace="DynamicOData" xmlns="http://docs.oasis-open.org/odata/ns/edm">
           <EntityType Name="DynamicEntity">
+            <Key>
+              <PropertyRef Name="SrNO"/>
+            </Key>
             {fields}
           </EntityType>
           <EntityContainer Name="Container">
