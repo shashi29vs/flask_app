@@ -1,10 +1,10 @@
 from flask import Flask, jsonify, request
 import requests
 import logging
+from flask_cors import CORS
 
 app = Flask(__name__)
-
-# Configure logging
+CORS(app)  # Enable CORS for cross-origin requests (required for Tableau)
 logging.basicConfig(level=logging.INFO)
 
 # Static API URL
@@ -112,4 +112,3 @@ def get_metadata():
 
 if __name__ == "__main__":
     app.run(debug=False, host="0.0.0.0", port=5000)
-    # app.run(debug=True)
