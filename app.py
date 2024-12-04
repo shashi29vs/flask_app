@@ -83,8 +83,8 @@ def get_metadata():
     try:
         # Static payload for metadata sampling
         sample_payload = {
-            "token": "f5439ee9-2a4e-4bec-b345-aa3a240cf3f8",  # Replace with any valid token for sampling
-            "intsurveyno": "4",  # Replace with any valid survey number for sampling
+            "token": "f5439ee9-2a4e-4bec-b345-aa3a240cf3f8",  # Replace with valid token
+            "intsurveyno": "4",  # Replace with valid survey number
             "ParticipationStatus": 3,
             "LastUpdate": "",
             "isincludeincompleteresponses": "true",
@@ -100,10 +100,23 @@ def get_metadata():
             logging.error(f"API request for metadata failed with status code {response.status_code}: {response.text}")
             return jsonify({"error": f"API request failed with status code {response.status_code}"}), response.status_code
 
-        sample_data = response.json().get("Data", [])[0]
+        sample_data = response.json().get("Data", [{}])[0] or {}
 
-        # Determine data types dynamically (all fields are treated as Edm.String for simplicity)
-        fields = "\n".join([f'<Property Name="{key}" Type="Edm.String"/>' for key in sample_data.keys()])
+        def determine_type(value):
+            if isinstance(value, int):
+                return "Edm.Int32"
+            elif isinstance(value, bool):
+                return "Edm.Boolean"
+            elif isinstance(value, str):
+                return "Edm.String"
+            elif isinstance(value, float):
+                return "Edm.Decimal"
+            else:
+                return "Edm.String"
+
+        # Generate fields dynamically based on sample data
+        fields = "\n".join([f'<Property Name="{key}" Type="{determine_type(value)}"/>'
+                            for key, value in sample_data.items()])
 
         # Generate metadata using the dynamic fields
         metadata = metadata_template.format(fields=fields)
