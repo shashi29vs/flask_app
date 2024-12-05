@@ -10,7 +10,6 @@ logging.basicConfig(level=logging.INFO)
 # Static API URL
 API_URL = "https://www.sogolytics.com/serviceAPI/service/GetDataTranspose"
 
-
 @app.route("/odata/DynamicEntities", methods=["GET"])
 def get_dynamic_entities():
     """
@@ -53,10 +52,12 @@ def get_dynamic_entities():
         }
 
         return jsonify(odata_response)  # Return OData-compliant JSON
+    except requests.exceptions.RequestException as e:
+        logging.error(f"API request failed: {e}")
+        return jsonify({"error": f"API request failed: {e}"}), 500
     except Exception as e:
-        logging.error(f"Error fetching dynamic entities: {e}")
-        return jsonify({"error": str(e)}), 500
-
+        logging.error(f"Unexpected error: {e}")
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 @app.route("/odata/$metadata", methods=["GET"])
 def get_metadata():
@@ -131,10 +132,12 @@ def get_metadata():
         # Generate metadata using the dynamic fields
         metadata = metadata_template.format(fields=fields)
         return metadata, 200, {"Content-Type": "application/xml"}
+    except requests.exceptions.RequestException as e:
+        logging.error(f"API request failed: {e}")
+        return jsonify({"error": f"API request failed: {e}"}), 500
     except Exception as e:
-        logging.error(f"Error fetching metadata: {e}")
-        return jsonify({"error": str(e)}), 500
-
+        logging.error(f"Unexpected error: {e}")
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 if __name__ == "__main__":
     app.run(debug=False, host="0.0.0.0", port=5000)
