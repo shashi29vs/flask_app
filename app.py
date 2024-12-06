@@ -1,143 +1,85 @@
-from flask import Flask, jsonify, request
-import requests
-import logging
-from flask_cors import CORS
+from flask import Flask, jsonify, Response
+import pandas as pd
+
+# Sample JSON data
+json_data = [
+    {
+        "EmailID": "Public Access",
+        "EndTime": "10/31/2024 10:43 AM",
+        "IPAddress": "103.74.16.54",
+        "LastUpdate": "2024-10-31T01:13:04.123",
+        "ParticipationStatus": "Completed",
+        "Q1_Please_rate_your_level_of_agreement_with_this_statement_Companyproductservicebrand_made_it_easy_for_me_to_meet_my_needs": "5 - Somewhat Agree",
+        "Q2_How_likely_is_it_that_you_would_recommend_company__product__service__brand_to_a_friend_or_colleague": "6",
+        "ResponseNum": 1,
+        "SrNO": 1,
+        "StartTime": "10/31/2024 10:43 AM"
+    },
+    {
+        "EmailID": "Public Access",
+        "EndTime": "10/31/2024 10:43 AM",
+        "IPAddress": "103.74.16.54",
+        "LastUpdate": "2024-10-31T01:13:09.183",
+        "ParticipationStatus": "Completed",
+        "Q1_Please_rate_your_level_of_agreement_with_this_statement_Companyproductservicebrand_made_it_easy_for_me_to_meet_my_needs": "4 - Neutral",
+        "Q2_How_likely_is_it_that_you_would_recommend_company__product__service__brand_to_a_friend_or_colleague": "7",
+        "ResponseNum": 2,
+        "SrNO": 2,
+        "StartTime": "10/31/2024 10:43 AM"
+    }
+]
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for cross-origin requests
-logging.basicConfig(level=logging.INFO)
 
-# Static API URL
-API_URL = "https://www.sogolytics.com/serviceAPI/service/GetDataTranspose"
+@app.route('/')
+def service_document():
+    service_doc = {
+        "@odata.context": "/$metadata",
+        "value": [
+            {"name": "SurveyData", "kind": "EntitySet", "url": "SurveyData"}
+        ]
+    }
+    return jsonify(service_doc)
 
-@app.route("/odata/DynamicEntities", methods=["GET"])
-def get_dynamic_entities():
+@app.route('/$metadata')
+def metadata():
+    metadata_xml = """<?xml version="1.0" encoding="utf-8"?>
+<edmx:Edmx Version="4.0" xmlns:edmx="http://docs.oasis-open.org/odata/ns/edmx">
+  <edmx:DataServices>
+    <Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="ODataService">
+      <EntityType Name="SurveyData">
+        <Key>
+          <PropertyRef Name="SrNO" />
+        </Key>
+        <Property Name="SrNO" Type="Edm.Int32" Nullable="false" />
+        <Property Name="ResponseNum" Type="Edm.Int32" />
+        <Property Name="EmailID" Type="Edm.String" />
+        <Property Name="ParticipationStatus" Type="Edm.String" />
+        <Property Name="IPAddress" Type="Edm.String" />
+        <Property Name="StartTime" Type="Edm.String" />
+        <Property Name="EndTime" Type="Edm.String" />
+        <Property Name="LastUpdate" Type="Edm.String" />
+        <Property Name="Q1_Please_rate_your_level_of_agreement_with_this_statement_Companyproductservicebrand_made_it_easy_for_me_to_meet_my_needs" Type="Edm.String" />
+        <Property Name="Q2_How_likely_is_it_that_you_would_recommend_company__product__service__brand_to_a_friend_or_colleague" Type="Edm.String" />
+      </EntityType>
+      <EntityContainer Name="Container">
+        <EntitySet Name="SurveyData" EntityType="ODataService.SurveyData" />
+      </EntityContainer>
+    </Schema>
+  </edmx:DataServices>
+</edmx:Edmx>
     """
-    Fetch data dynamically using token and intsurveyno from query parameters.
-    """
-    try:
-        # Get 'token' and 'intsurveyno' from query parameters
-        token = request.args.get("token")
-        intsurveyno = request.args.get("intsurveyno")
+    return Response(metadata_xml, content_type='application/xml')
 
-        if not token or not intsurveyno:
-            return jsonify({"error": "Both 'token' and 'intsurveyno' are required"}), 400
+@app.route('/SurveyData')
+def survey_data():
+    df = pd.DataFrame(json_data)
+    odata_response = {
+        "@odata.context": "/$metadata#SurveyData",
+        "value": df.to_dict(orient='records')
+    }
+    return jsonify(odata_response)
 
-        # Dynamic payload
-        payload = {
-            "token": token,
-            "intsurveyno": intsurveyno,
-            "ParticipationStatus": 3,
-            "LastUpdate": "",
-            "isincludeincompleteresponses": "true",
-            "getassigncodes": "false",
-            "intstartno": "1",
-            "intendno": "0"
-        }
-
-        # Fetch data from the API
-        logging.info(f"Fetching data for token={token} and intsurveyno={intsurveyno}")
-        response = requests.post(API_URL, json=payload)
-        if response.status_code != 200:
-            logging.error(f"API request failed with status code {response.status_code}: {response.text}")
-            return jsonify({"error": f"API request failed with status code {response.status_code}"}), response.status_code
-
-        data = response.json()
-        records = data.get("Data", [])
-
-        # Add the @odata.context key
-        odata_response = {
-            "@odata.context": f"{request.url_root}odata/$metadata#DynamicEntities",
-            "value": records
-        }
-
-        return jsonify(odata_response)  # Return OData-compliant JSON
-    except requests.exceptions.RequestException as e:
-        logging.error(f"API request failed: {e}")
-        return jsonify({"error": f"API request failed: {e}"}), 500
-    except Exception as e:
-        logging.error(f"Unexpected error: {e}")
-        return jsonify({"error": "An unexpected error occurred"}), 500
-
-@app.route("/odata/$metadata", methods=["GET"])
-def get_metadata():
-    """
-    Dynamically generate OData metadata based on the API response.
-    """
-    metadata_template = """<?xml version="1.0" encoding="utf-8"?>
-    <edmx:Edmx xmlns:edmx="http://docs.oasis-open.org/odata/ns/edmx" Version="4.0">
-      <edmx:DataServices>
-        <Schema Namespace="DynamicOData" xmlns="http://docs.oasis-open.org/odata/ns/edm">
-          <EntityType Name="DynamicEntity" OpenType="true">
-            <Key>
-              <PropertyRef Name="SrNO"/>
-            </Key>
-            {fields}
-          </EntityType>
-          <EntityContainer Name="Container">
-            <EntitySet Name="DynamicEntities" EntityType="DynamicOData.DynamicEntity"/>
-          </EntityContainer>
-        </Schema>
-      </edmx:DataServices>
-    </edmx:Edmx>"""
-
-    try:
-        # Static payload for metadata sampling
-        sample_payload = {
-            "token": "f5439ee9-2a4e-4bec-b345-aa3a240cf3f8",  # Replace with valid token
-            "intsurveyno": "4",  # Replace with valid survey number
-            "ParticipationStatus": 3,
-            "LastUpdate": "",
-            "isincludeincompleteresponses": "true",
-            "getassigncodes": "false",
-            "intstartno": "1",
-            "intendno": "1"  # Fetch only one record for metadata
-        }
-
-        # Fetch a sample response to determine dynamic schema
-        logging.info("Fetching metadata sample response...")
-        response = requests.post(API_URL, json=sample_payload)
-        if response.status_code != 200:
-            logging.error(f"API request for metadata failed with status code {response.status_code}: {response.text}")
-            return jsonify({"error": f"API request failed with status code {response.status_code}"}), response.status_code
-
-        sample_data = response.json().get("Data", [{}])[0] or {}
-
-        def determine_type(value):
-            if isinstance(value, int):
-                return "Edm.Int32"
-            elif isinstance(value, bool):
-                return "Edm.Boolean"
-            elif isinstance(value, str):
-                return "Edm.String"
-            elif isinstance(value, float):
-                return "Edm.Double"
-            else:
-                return "Edm.String"
-
-        # Shorten long property names
-        def shorten_property_name(name):
-            if len(name) > 50:
-                return name[:50]
-            return name
-
-        # Generate fields dynamically based on sample data
-        fields = "\n".join(
-            [
-                f'<Property Name="{shorten_property_name(key)}" Type="{determine_type(value)}"/>'
-                for key, value in sample_data.items()
-            ]
-        )
-
-        # Generate metadata using the dynamic fields
-        metadata = metadata_template.format(fields=fields)
-        return metadata, 200, {"Content-Type": "application/xml"}
-    except requests.exceptions.RequestException as e:
-        logging.error(f"API request failed: {e}")
-        return jsonify({"error": f"API request failed: {e}"}), 500
-    except Exception as e:
-        logging.error(f"Unexpected error: {e}")
-        return jsonify({"error": "An unexpected error occurred"}), 500
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     app.run(debug=False, host="0.0.0.0", port=5000)
+    # app.run(port=5000)
